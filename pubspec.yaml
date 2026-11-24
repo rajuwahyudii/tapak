@@ -1,0 +1,21 @@
+name: tapak
+description: "In-app HTTP inspector for Flutter. Debug API calls like Chucker — right inside your app."
+version: 0.1.0
+homepage: https://github.com/your-username/tapak
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: ^5.0.0
+  http: ^1.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
