@@ -58,7 +58,8 @@ class TapakInterceptor extends Interceptor {
       options.extra[_kTxKey] = tx; // survive to onResponse/onError
 
       if (enabled) _store.add(tx);
-      if (logToConsole) TapakPrinter.request(tx);
+      if (logToConsole)
+        TapakPrinter.request(tx, clientType: TapakClientType.dio);
     }
     handler.next(options);
   }
@@ -75,7 +76,8 @@ class TapakInterceptor extends Interceptor {
         tx.status = TransactionStatus.success;
 
         if (enabled) _store.update(tx);
-        if (logToConsole) TapakPrinter.response(tx);
+        if (logToConsole)
+          TapakPrinter.response(tx, clientType: TapakClientType.dio);
       }
     }
     handler.next(response);
@@ -93,7 +95,8 @@ class TapakInterceptor extends Interceptor {
         tx.status = TransactionStatus.error;
 
         if (enabled) _store.update(tx);
-        if (logToConsole) TapakPrinter.response(tx);
+        if (logToConsole)
+          TapakPrinter.response(tx, clientType: TapakClientType.dio);
       }
     }
     handler.next(err);
@@ -110,5 +113,6 @@ class TapakInterceptor extends Interceptor {
   /// Dio headers are `Map<String, List<String>>`; flatten to `Map<String, String>`.
   static Map<String, dynamic> _flattenHeaders(
     Map<String, List<String>> headers,
-  ) => headers.map((k, v) => MapEntry(k, v.join(', ')));
+  ) =>
+      headers.map((k, v) => MapEntry(k, v.join(', ')));
 }

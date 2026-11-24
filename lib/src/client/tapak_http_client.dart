@@ -59,7 +59,8 @@ class TapakHttpClient extends BaseClient {
     );
 
     if (enabled) _store.add(tx);
-    if (logToConsole) TapakPrinter.request(tx);
+    if (logToConsole)
+      TapakPrinter.request(tx, clientType: TapakClientType.http);
 
     try {
       final response = await _inner.send(request);
@@ -74,7 +75,8 @@ class TapakHttpClient extends BaseClient {
       tx.status = TransactionStatus.success;
 
       if (enabled) _store.update(tx);
-      if (logToConsole) TapakPrinter.response(tx);
+      if (logToConsole)
+        TapakPrinter.response(tx, clientType: TapakClientType.http);
 
       // Re-wrap the buffered bytes as a fresh StreamedResponse.
       return StreamedResponse(
@@ -93,7 +95,8 @@ class TapakHttpClient extends BaseClient {
       tx.status = TransactionStatus.error;
 
       if (enabled) _store.update(tx);
-      if (logToConsole) TapakPrinter.response(tx);
+      if (logToConsole)
+        TapakPrinter.response(tx, clientType: TapakClientType.http);
       rethrow;
     }
   }

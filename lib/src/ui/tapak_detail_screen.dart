@@ -7,7 +7,7 @@ import 'widgets/body_viewer.dart';
 
 /// Detail screen for a single [HttpTransaction].
 ///
-/// Shows three tabs: Overview, Request, Response.
+/// Shows four tabs: Overview, Request, Response, Error.
 class TapakDetailScreen extends StatelessWidget {
   const TapakDetailScreen({super.key, required this.transaction});
 
@@ -17,9 +17,10 @@ class TapakDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final tx = transaction;
     final path = tx.uri.path.isEmpty ? '/' : tx.uri.path;
+    final hasError = tx.status == TransactionStatus.error;
 
     return DefaultTabController(
-      length: 3,
+      length: hasError ? 4 : 3,
       child: Scaffold(
         appBar: AppBar(
           titleSpacing: 0,
@@ -36,11 +37,12 @@ class TapakDetailScreen extends StatelessWidget {
               ),
             ],
           ),
-          bottom: const TabBar(
+          bottom: TabBar(
             tabs: [
-              Tab(text: 'Overview'),
-              Tab(text: 'Request'),
-              Tab(text: 'Response'),
+              const Tab(text: 'Overview'),
+              const Tab(text: 'Request'),
+              const Tab(text: 'Response'),
+              if (hasError) const Tab(text: 'Error'),
             ],
           ),
         ),
@@ -49,6 +51,7 @@ class TapakDetailScreen extends StatelessWidget {
             _OverviewTab(tx: tx),
             _RequestTab(tx: tx),
             _ResponseTab(tx: tx),
+            if (hasError) _ErrorTab(tx: tx),
           ],
         ),
       ),
@@ -78,13 +81,9 @@ class _OverviewTab extends StatelessWidget {
           trailing: StatusBadge(status: tx.status, statusCode: tx.statusCode),
         ),
         _InfoRow('Duration', tx.durationText),
-        _InfoRow('Sent at', _formatTime(tx.requestTime)),
+        _InfoRow('Started', _formatTime(tx.requestTime)),
         if (tx.responseTime != null)
-          _InfoRow('Received at', _formatTime(tx.responseTime!)),
-        if (tx.error != null) ...[
-          const SizedBox(height: 12),
-          _ErrorBox(message: tx.error!),
-        ],
+          _InfoRow('Completed', _formatTime(tx.responseTime!)),
       ],
     );
   }
@@ -98,37 +97,157 @@ class _OverviewTab extends StatelessWidget {
   static String _p(int v) => v.toString().padLeft(2, '0');
 }
 
-class _ErrorBox extends StatelessWidget {
-  const _ErrorBox({required this.message});
-  final String message;
+// ---------------------------------------------------------------------------
+// Request tab
+// ---------------------------------------------------------------------------
+
+class _RequestTab extends StatelessWidget {
+  const _RequestTab({required this.tx});
+  final HttpTransaction tx;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF44336).withAlpha(20),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFF44336).withAlpha(80)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Error',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFF44336),
-              fontSize: 13,
+    final queryParams = tx.uri.queryParameters;
+    final allHeaders = <String, String>{
+      ...tx.requestHeaders.map((k, v) => MapEntry(k, v.toString())),
+      // Show response headers here since user wants headers in Request tab
+      if (tx.responseHeaders != null)
+        ...tx.responseHeaders!.map((k, v) => MapEntry(k, v.toString())),
+    };
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Headers section
+        _SectionTitle('Headers (${allHeaders.length})'),
+        if (allHeaders.isEmpty)
+          const _EmptyHint('No headers')
+        else
+          ...allHeaders.entries.map((e) => _KeyValueRow(e.key, e.value)),
+
+        const SizedBox(height: 20),
+
+        // Query parameters section
+        _SectionTitle('Query Parameters'),
+        if (queryParams.isEmpty)
+          const _EmptyHint('No query parameters')
+        else
+          ...queryParams.entries.map((e) => _KeyValueRow(e.key, e.value)),
+
+        // Body section (only if has request body, e.g. POST)
+        if (tx.formattedRequestBody.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          _SectionTitle('Body'),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 300),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
             ),
+            child: BodyViewer(body: tx.formattedRequestBody),
           ),
-          const SizedBox(height: 4),
-          SelectableText(message, style: const TextStyle(fontSize: 13)),
         ],
-      ),
+      ],
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Response tab
+// ---------------------------------------------------------------------------
+
+class _ResponseTab extends StatelessWidget {
+  const _ResponseTab({required this.tx});
+  final HttpTransaction tx;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPending = tx.status == TransactionStatus.pending;
+    final body = isPending ? '' : tx.formattedResponseBody;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: _SectionTitle('Body'),
+        ),
+        Expanded(
+          child: isPending
+              ? const Center(child: _EmptyHint('Waiting for response…'))
+              : body.isEmpty
+              ? const Center(child: _EmptyHint('Empty body'))
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: BodyViewer(body: body),
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Error tab
+// ---------------------------------------------------------------------------
+
+class _ErrorTab extends StatelessWidget {
+  const _ErrorTab({required this.tx});
+  final HttpTransaction tx;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF44336).withAlpha(20),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFF44336).withAlpha(80)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.error_outline, color: Color(0xFFF44336), size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Error',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFF44336),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SelectableText(
+                tx.error ?? 'Unknown error',
+                style: const TextStyle(fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared widgets
+// ---------------------------------------------------------------------------
 
 class _InfoRow extends StatelessWidget {
   const _InfoRow(this.label, this.value, {this.trailing});
@@ -176,135 +295,67 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Request tab
-// ---------------------------------------------------------------------------
-
-class _RequestTab extends StatelessWidget {
-  const _RequestTab({required this.tx});
-  final HttpTransaction tx;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionLabel('Headers'),
-        SizedBox(height: 180, child: _HeadersView(headers: tx.requestHeaders)),
-        const Divider(height: 1),
-        _SectionLabel('Body'),
-        Expanded(child: BodyViewer(body: tx.formattedRequestBody)),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Response tab
-// ---------------------------------------------------------------------------
-
-class _ResponseTab extends StatelessWidget {
-  const _ResponseTab({required this.tx});
-  final HttpTransaction tx;
-
-  @override
-  Widget build(BuildContext context) {
-    final body = tx.status == TransactionStatus.pending
-        ? ''
-        : tx.formattedResponseBody;
-
-    final emptyLabel = tx.status == TransactionStatus.pending
-        ? 'Waiting for response…'
-        : 'Empty body';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionLabel('Headers'),
-        SizedBox(
-          height: 180,
-          child: _HeadersView(headers: tx.responseHeaders ?? {}),
-        ),
-        const Divider(height: 1),
-        _SectionLabel('Body'),
-        Expanded(
-          child: BodyViewer(body: body, emptyLabel: emptyLabel),
-        ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Shared widgets
-// ---------------------------------------------------------------------------
-
-class _HeadersView extends StatelessWidget {
-  const _HeadersView({required this.headers});
-  final Map<String, dynamic> headers;
-
-  @override
-  Widget build(BuildContext context) {
-    if (headers.isEmpty) {
-      return Center(
-        child: Text(
-          'No headers',
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      itemCount: headers.length,
-      itemBuilder: (context, i) {
-        final entry = headers.entries.elementAt(i);
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 150,
-                child: Text(
-                  entry.key,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  entry.value.toString(),
-                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.label);
-  final String label;
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.title);
+  final String title;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Text(
-        label.toUpperCase(),
+        title,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.bold,
-          letterSpacing: 0.8,
           color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
+    );
+  }
+}
+
+class _KeyValueRow extends StatelessWidget {
+  const _KeyValueRow(this.key_, this.value);
+  final String key_;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$key_: ',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 12))),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyHint extends StatelessWidget {
+  const _EmptyHint(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          fontStyle: FontStyle.italic,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );

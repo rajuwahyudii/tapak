@@ -23,6 +23,7 @@ library;
 
 export 'src/client/tapak_http_client.dart';
 export 'src/interceptor/tapak_interceptor.dart';
+export 'src/logger/tapak_printer.dart' show TapakPrinter;
 export 'src/model/http_transaction.dart';
 export 'src/store/tapak_store.dart';
 export 'src/ui/tapak_detail_screen.dart';
