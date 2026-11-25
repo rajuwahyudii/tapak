@@ -564,7 +564,7 @@ void main() {
       // The network call will fail (no connectivity in tests), but the internal
       // try/catch means the returned Future completes normally anyway.
       // ignore: unawaited_futures
-      TapakReplayer.replay(original).catchError((_) {});
+      TapakReplayer.replay(original).catchError((_) => original);
 
       await Future.microtask(() {});
 

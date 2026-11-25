@@ -197,98 +197,108 @@ class _IosFabState extends State<_IosFab> {
           widget.onTap();
         },
         onTapCancel: () => setState(() => _pressed = false),
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeOut,
-          opacity: _idle ? 0.38 : 1.0,
-          child: AnimatedScale(
-            scale: _pressed ? 0.88 : 1.0,
-            duration: const Duration(milliseconds: 110),
-            curve: Curves.easeOut,
-            child: SizedBox(
-              width: _kFabSize,
-              height: _kFabSize,
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    // Coloured ambient glow
-                    BoxShadow(
-                      color: baseColor.withValues(alpha: 0.45),
-                      blurRadius: 22,
-                      spreadRadius: 1,
-                    ),
-                    // Mid-distance shadow
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.22),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                    // Crisp contact shadow
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.10),
-                      blurRadius: 2,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-                child: Container(
+        child: SizedBox(
+          width: _kFabSize,
+          height: _kFabSize,
+          // clipBehavior.none lets the circular shadow glow overflow the
+          // 52×52 bounds without being clipped to a rectangle.
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // ── Shadow layer ───────────────────────────────────────────
+              // Lives OUTSIDE AnimatedOpacity so the compositing layer
+              // that opacity creates never clips the circular glow.
+              Positioned.fill(
+                child: DecoratedBox(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        highlightColor.withValues(alpha: 0.92),
-                        baseColor.withValues(alpha: 0.80),
-                      ],
-                    ),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.22),
-                      width: 0.75,
-                    ),
-                  ),
-                  child: Stack(
-                    children: [
-                      // Glass highlight arc — top-left shimmer
-                      Positioned(
-                        top: 5,
-                        left: 9,
-                        right: 9,
-                        child: Container(
-                          height: 16,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(100),
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.white.withValues(alpha: 0.38),
-                                Colors.white.withValues(alpha: 0.0),
-                              ],
-                            ),
-                          ),
-                        ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: baseColor.withValues(alpha: 0.45),
+                        blurRadius: 22,
+                        spreadRadius: 1,
                       ),
-                      // Count label
-                      Center(
-                        child: Text(
-                          widget.count > 99 ? '99+' : '${widget.count}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.5,
-                            height: 1,
-                            decoration: TextDecoration.none,
-                          ),
-                        ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.22),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.10),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
                       ),
                     ],
                   ),
                 ),
               ),
-            ),
+              // ── Visual layer (opacity + scale apply only here) ─────────
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.easeOut,
+                opacity: _idle ? 0.38 : 1.0,
+                child: AnimatedScale(
+                  scale: _pressed ? 0.88 : 1.0,
+                  duration: const Duration(milliseconds: 110),
+                  curve: Curves.easeOut,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          highlightColor.withValues(alpha: 0.92),
+                          baseColor.withValues(alpha: 0.80),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        width: 0.75,
+                      ),
+                    ),
+                    child: Stack(
+                      children: [
+                        // Glass highlight arc — top-left shimmer
+                        Positioned(
+                          top: 5,
+                          left: 9,
+                          right: 9,
+                          child: Container(
+                            height: 16,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(100),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.white.withValues(alpha: 0.38),
+                                  Colors.white.withValues(alpha: 0.0),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Count label
+                        Center(
+                          child: Text(
+                            widget.count > 99 ? '99+' : '${widget.count}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.5,
+                              height: 1,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
