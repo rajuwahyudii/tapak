@@ -29,6 +29,9 @@ class HttpTransaction {
   String? error;
   TransactionStatus status;
 
+  /// True when this transaction was created by [TapakReplayer].
+  bool isReplayed = false;
+
   Duration? get duration => responseTime?.difference(requestTime);
 
   String get durationText {
@@ -38,11 +41,29 @@ class HttpTransaction {
     return '${(d.inMilliseconds / 1000).toStringAsFixed(1)}s';
   }
 
-  String get formattedRequestBody => _formatBody(requestBody);
-  String get formattedResponseBody => _formatBody(responseBody);
+  // ponytail: formatBody can be expensive (UTF-8 decode, JSON encode).
+  // Cache on first access; requestBody is final, responseBody is set once.
+  String? _cachedRequestBody;
+  String? _cachedResponseBody;
+
+  String get formattedRequestBody =>
+      _cachedRequestBody ??= _formatBody(requestBody);
+
+  String get formattedResponseBody {
+    if (responseBody == null) return '';
+    return _cachedResponseBody ??= _formatBody(responseBody);
+  }
 
   static String _formatBody(dynamic body) {
     if (body == null) return '';
+    if (body is List<int>) {
+      // Byte array — decode as UTF-8 then recurse to get JSON pretty-print.
+      try {
+        return _formatBody(utf8.decode(body));
+      } catch (_) {
+        return body.toString();
+      }
+    }
     if (body is String) {
       try {
         return const JsonEncoder.withIndent('  ').convert(jsonDecode(body));

@@ -49,36 +49,48 @@ class TapakHttpClient extends BaseClient {
   Future<StreamedResponse> send(BaseRequest request) async {
     if (!enabled && !logToConsole) return _inner.send(request);
 
-    final tx = HttpTransaction(
-      id: '${DateTime.now().microsecondsSinceEpoch}_${request.hashCode}',
-      method: request.method,
-      uri: request.url,
-      requestHeaders: Map<String, dynamic>.from(request.headers),
-      requestBody: _captureRequestBody(request),
-      requestTime: DateTime.now(),
-    );
-
-    if (enabled) _store.add(tx);
-    if (logToConsole)
-      TapakPrinter.request(tx, clientType: TapakClientType.http);
+    HttpTransaction? tx;
+    try {
+      tx = HttpTransaction(
+        id: '${DateTime.now().microsecondsSinceEpoch}_${request.hashCode}',
+        method: request.method,
+        uri: request.url,
+        requestHeaders: Map<String, dynamic>.from(request.headers),
+        requestBody: _captureRequestBody(request),
+        requestTime: DateTime.now(),
+      );
+      if (enabled) {
+        _store.add(tx);
+      }
+      if (logToConsole) {
+        TapakPrinter.request(tx, clientType: TapakClientType.http);
+      }
+    } catch (_) {
+      // Tapak setup failed — still forward the real request.
+    }
 
     try {
       final response = await _inner.send(request);
-
-      // Buffer the stream so we can record the body and still return it.
       final bytes = await response.stream.toBytes();
 
-      tx.statusCode = response.statusCode;
-      tx.responseHeaders = Map<String, dynamic>.from(response.headers);
-      tx.responseBody = utf8.decode(bytes, allowMalformed: true);
-      tx.responseTime = DateTime.now();
-      tx.status = TransactionStatus.success;
+      try {
+        if (tx != null) {
+          tx.statusCode = response.statusCode;
+          tx.responseHeaders = Map<String, dynamic>.from(response.headers);
+          tx.responseBody = utf8.decode(bytes, allowMalformed: true);
+          tx.responseTime = DateTime.now();
+          tx.status = TransactionStatus.success;
+          if (enabled) {
+            _store.update(tx);
+          }
+          if (logToConsole) {
+            TapakPrinter.response(tx, clientType: TapakClientType.http);
+          }
+        }
+      } catch (_) {
+        // Tapak recording failed — response is still returned.
+      }
 
-      if (enabled) _store.update(tx);
-      if (logToConsole)
-        TapakPrinter.response(tx, clientType: TapakClientType.http);
-
-      // Re-wrap the buffered bytes as a fresh StreamedResponse.
       return StreamedResponse(
         Stream.value(bytes),
         response.statusCode,
@@ -90,14 +102,20 @@ class TapakHttpClient extends BaseClient {
         reasonPhrase: response.reasonPhrase,
       );
     } catch (e) {
-      tx.responseTime = DateTime.now();
-      tx.error = e.toString();
-      tx.status = TransactionStatus.error;
-
-      if (enabled) _store.update(tx);
-      if (logToConsole)
-        TapakPrinter.response(tx, clientType: TapakClientType.http);
-      rethrow;
+      try {
+        if (tx != null) {
+          tx.responseTime = DateTime.now();
+          tx.error = e.toString();
+          tx.status = TransactionStatus.error;
+          if (enabled) {
+            _store.update(tx);
+          }
+          if (logToConsole) {
+            TapakPrinter.response(tx, clientType: TapakClientType.http);
+          }
+        }
+      } catch (_) {}
+      rethrow; // Real network error — always propagate to the caller.
     }
   }
 

@@ -1,23 +1,75 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../har/har_exporter.dart';
 import '../model/http_transaction.dart';
+import '../replay/tapak_replayer.dart';
 import 'widgets/method_badge.dart';
 import 'widgets/status_badge.dart';
 import 'widgets/body_viewer.dart';
 
+enum _DetailAction { replay, exportHar }
+
 /// Detail screen for a single [HttpTransaction].
 ///
-/// Shows four tabs: Overview, Request, Response, Error.
-class TapakDetailScreen extends StatelessWidget {
+/// Shows three tabs: Overview, Request, Response (plus Error when applicable).
+class TapakDetailScreen extends StatefulWidget {
   const TapakDetailScreen({super.key, required this.transaction});
 
   final HttpTransaction transaction;
 
   @override
+  State<TapakDetailScreen> createState() => _TapakDetailScreenState();
+}
+
+class _TapakDetailScreenState extends State<TapakDetailScreen> {
+  bool _replaying = false;
+
+  Future<void> _replay() async {
+    if (_replaying) return;
+    setState(() => _replaying = true);
+    try {
+      final newTx = await TapakReplayer.replay(widget.transaction);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Replayed — ${newTx.statusCode ?? 'error'}'),
+          action: SnackBarAction(
+            label: 'View in list',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _replaying = false);
+    }
+  }
+
+  Future<void> _exportHar() async {
+    final har = HarExporter.toHarString([widget.transaction]);
+    await Clipboard.setData(ClipboardData(text: har));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('HAR copied to clipboard.')),
+      );
+    }
+  }
+
+  void _onMenuSelected(_DetailAction action) {
+    switch (action) {
+      case _DetailAction.replay:
+        _replay();
+      case _DetailAction.exportHar:
+        _exportHar();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final tx = transaction;
+    final tx = widget.transaction;
     final path = tx.uri.path.isEmpty ? '/' : tx.uri.path;
     final hasError = tx.status == TransactionStatus.error;
+    final isPending = tx.status == TransactionStatus.pending;
 
     return DefaultTabController(
       length: hasError ? 4 : 3,
@@ -27,6 +79,10 @@ class TapakDetailScreen extends StatelessWidget {
           title: Row(
             children: [
               MethodBadge(tx.method),
+              if (tx.isReplayed) ...[
+                const SizedBox(width: 6),
+                _ReplayChip(),
+              ],
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -37,6 +93,41 @@ class TapakDetailScreen extends StatelessWidget {
               ),
             ],
           ),
+          actions: [
+            // Spinner shown while replay is in progress.
+            if (_replaying)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 14),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            PopupMenuButton<_DetailAction>(
+              icon: const Icon(Icons.more_vert),
+              tooltip: 'More',
+              onSelected: _onMenuSelected,
+              itemBuilder: (_) => [
+                if (!isPending)
+                  PopupMenuItem(
+                    value: _DetailAction.replay,
+                    enabled: !_replaying,
+                    child: const _DetailMenuItem(
+                      icon: Icons.replay,
+                      label: 'Replay request',
+                    ),
+                  ),
+                const PopupMenuItem(
+                  value: _DetailAction.exportHar,
+                  child: _DetailMenuItem(
+                    icon: Icons.download_outlined,
+                    label: 'Export as HAR',
+                  ),
+                ),
+              ],
+            ),
+          ],
           bottom: TabBar(
             tabs: [
               const Tab(text: 'Overview'),
@@ -176,19 +267,19 @@ class _ResponseTab extends StatelessWidget {
           child: isPending
               ? const Center(child: _EmptyHint('Waiting for response…'))
               : body.isEmpty
-              ? const Center(child: _EmptyHint('Empty body'))
-              : Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
+                  ? const Center(child: _EmptyHint('Empty body'))
+                  : Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: BodyViewer(body: body),
+                      ),
                     ),
-                    child: BodyViewer(body: body),
-                  ),
-                ),
         ),
       ],
     );
@@ -357,6 +448,55 @@ class _EmptyHint extends StatelessWidget {
           fontStyle: FontStyle.italic,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+class _DetailMenuItem extends StatelessWidget {
+  const _DetailMenuItem({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 20),
+        const SizedBox(width: 12),
+        Text(label),
+      ],
+    );
+  }
+}
+
+class _ReplayChip extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.orange.withAlpha(30),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.orange.withAlpha(120), width: 0.75),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.replay, size: 9, color: Colors.orange.shade700),
+          const SizedBox(width: 3),
+          Text(
+            'replay',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: Colors.orange.shade700,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,6 +1,10 @@
 # Tapak
 
 <p align="center">
+  <img src="tapak.jpeg" alt="Tapak logo" width="180">
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/Flutter-3.0+-blue.svg" alt="Flutter">
   <img src="https://img.shields.io/badge/Dart-3.0+-blue.svg" alt="Dart">
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
@@ -16,15 +20,20 @@ Inspired by [Alice](https://github.com/jhomlala/alice) and [Chucker](https://git
 
 | Feature | Description |
 |---------|-------------|
-| 📡 **HTTP Logging** | Automatically logs all Dio and http requests |
+| 📡 **HTTP Logging** | Automatically logs all Dio and `http` requests |
 | 🎨 **Beautiful UI** | Color-coded method badges and status indicators |
 | ⏱️ **Timing** | Request/response duration tracking |
 | 📋 **Full Inspection** | Headers, body, query params with copy-to-clipboard |
-| 🔍 **Search & Filter** | Filter by URL, method, or status |
-| 🎯 **JSON Viewer** | Syntax-highlighted, searchable JSON tree |
+| 🔍 **Search & Filter** | Filter by URL or method; search inside any body |
+| 🎯 **JSON Viewer** | Regex-based syntax-highlighted viewer — no lag on large responses |
 | 🔴 **Error Alerts** | Overlay button turns red on errors |
-| 🖥️ **Console Logging** | Optional beautiful debug console output |
+| 🖥️ **Console Logging** | Optional formatted debug console output (capped at 100 lines) |
 | 🌙 **Dark Mode** | Full dark/light theme support |
+| 🪄 **iOS-style Overlay** | Draggable frosted-glass button with idle fade and press animation |
+| 🎨 **Custom Button Color** | Set any colour for the overlay button at runtime |
+| 👁️ **Toggle Button** | Show or hide the overlay button without restarting |
+| 📤 **HAR Export** | Export all recorded requests as HAR 1.2 (copied to clipboard) |
+| 🔢 **Binary Body Decoding** | `List<int>` byte-array responses decoded to UTF-8 automatically |
 
 ---
 
@@ -60,8 +69,8 @@ import 'package:tapak/tapak.dart';
 
 final dio = Dio()
   ..interceptors.add(TapakInterceptor(
-    enabled: kDebugMode,      // Show in UI inspector
-    logToConsole: kDebugMode, // Print to debug console
+    enabled: kDebugMode,      // show in UI inspector
+    logToConsole: kDebugMode, // also print to debug console
   ));
 ```
 
@@ -78,13 +87,12 @@ final client = TapakHttpClient(
   logToConsole: kDebugMode,
 );
 
-// Use like a regular http.Client
 final response = await client.get(Uri.parse('https://api.example.com/posts'));
 ```
 
 ### 3. Add overlay button
 
-Wrap inside `MaterialApp.builder`:
+Wrap your home widget inside `MaterialApp.builder`:
 
 ```dart
 MaterialApp(
@@ -96,35 +104,52 @@ MaterialApp(
 )
 ```
 
-**That's it!** A floating button appears showing live request count. Tap to open the inspector.
+**That's it!** A draggable iOS-style button appears on the right side of the screen showing the live request count. Tap it to open the inspector.
 
 ---
 
 ## 📖 Usage
 
-### Overlay Button (Recommended)
+### Overlay Button
 
-The floating overlay button provides quick access to the inspector:
+The floating button provides quick access to the inspector. It starts at the right-middle of the screen and can be dragged anywhere.
 
 ```dart
 MaterialApp(
   builder: (context, child) => TapakOverlay(
-    enabled: kDebugMode,  // Only show in debug mode
+    enabled: kDebugMode,
     child: child!,
   ),
-  home: const MyHomePage(),
 )
 ```
 
-Features:
+**Button behaviour:**
 - Shows live request count
 - Turns **red** when any request has errored
-- Draggable to any position
-- Tap to open full inspector
+- Fades to 40% opacity after 4 s of inactivity (wakes on touch or new request)
+- Scales down on press for tactile feedback
+- Fully draggable — position persists across the session
+- Default position: right edge, vertically centred
+
+**Toggle visibility at runtime:**
+
+```dart
+TapakStore.instance.showButton = false; // hide
+TapakStore.instance.showButton = true;  // show
+```
+
+**Set a custom colour:**
+
+```dart
+TapakStore.instance.buttonColor = Colors.teal;    // custom
+TapakStore.instance.buttonColor = null;           // back to auto (grey → blue → red)
+```
+
+> The error state (red) always overrides a custom colour so the signal is never lost.
 
 ### Navigate Manually
 
-Open the inspector screen from anywhere:
+Open the inspector from anywhere in your app:
 
 ```dart
 Navigator.push(
@@ -133,15 +158,18 @@ Navigator.push(
 );
 ```
 
-### View Transaction Details
+### HAR Export
+
+Tap the **download** icon in the inspector app bar to copy all recorded requests as a [HAR 1.2](https://w3c.github.io/web-performance/specs/HAR/Overview.html) JSON string to the clipboard. Paste it into [Chrome DevTools](https://developer.chrome.com/docs/devtools), [Charles](https://www.charlesproxy.com), or any HAR viewer.
+
+You can also generate HAR programmatically:
 
 ```dart
-Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (_) => TapakDetailScreen(transaction: transaction),
-  ),
-);
+import 'package:tapak/tapak.dart';
+
+final har = HarExporter.toHarString(TapakStore.instance.transactions);
+// or as a Map for custom serialisation:
+final map = HarExporter.toHarMap(TapakStore.instance.transactions);
 ```
 
 ---
@@ -150,73 +178,55 @@ Navigator.push(
 
 ### Console Logging
 
-Control what appears in the debug console:
-
 ```dart
 TapakInterceptor(
   enabled: true,       // UI inspector
-  logToConsole: true,  // Debug console output
+  logToConsole: true,  // debug console output
 )
 ```
 
-Console output with beautiful formatting:
+Console output (truncated at 100 lines for large responses):
 
 ```
-[Tapak] ┌──────────────────────────────────────────────────────────┐
-        │ << RESPONSE  [200]  1.2s                                 │
-        ├──────────────────────────────────────────────────────────┤
-        │ GET  /posts/1                                            │
-        ├──────────────────────────────────────────────────────────┤
-        │ {                                                        │
-        │   "userId": 1,                                           │
-        │   "id": 1,                                               │
-        │   "title": "sunt aut facere repellat..."                 │
-        │ }                                                        │
-        └──────────────────────────────────────────────────────────┘
+[Tapak] ╔══════════════════════════════════════════════════════════════════════╗
+        ║ << RESPONSE  [200]  1.2s                                             ║
+        ╠══════════════════════════════════════════════════════════════════════╣
+        ║ GET  /posts/1                                                        ║
+        ╠══════════════════════════════════════════════════════════════════════╣
+        ║ {                                                                    ║
+        ║   "userId": 1,                                                       ║
+        ║   "id": 1,                                                           ║
+        ║   "title": "sunt aut facere repellat..."                             ║
+        ║ }                                                                    ║
+        ╚══════════════════════════════════════════════════════════════════════╝
 ```
 
 ### Console Options
 
 ```dart
-// Set a custom title for logs
-TapakPrinter.title = 'MyApp API';
-
-// Show headers in console output
-TapakPrinter.showHeaders = true;
-```
-
-Console output with title and client type:
-
-```
-[Tapak] ┌──────────────────────────────────────────────────────────┐
-        │ [MyApp API]  >> REQUEST  (dio)                           │
-        ├──────────────────────────────────────────────────────────┤
-        │ GET  https://api.example.com/posts                       │
-        └──────────────────────────────────────────────────────────┘
-
-[Tapak] ┌──────────────────────────────────────────────────────────┐
-        │ [MyApp API]  << RESPONSE  [200]  1.2s  (dio)             │
-        ├──────────────────────────────────────────────────────────┤
-        │ GET  /posts                                              │
-        ├──────────────────────────────────────────────────────────┤
-        │ {                                                        │
-        │   "data": [...]                                          │
-        │ }                                                        │
-        └──────────────────────────────────────────────────────────┘
+TapakPrinter.title = 'MyApp API';  // custom prefix in every log line
+TapakPrinter.showHeaders = true;   // include headers in output
 ```
 
 ### Store Configuration
 
 ```dart
-// Increase transaction limit (default: 200)
+// Increase transaction cap (default: 200)
 TapakStore.instance.maxTransactions = 500;
 
 // Clear all logs
 TapakStore.instance.clear();
 
+// Show / hide the overlay button
+TapakStore.instance.showButton = false;
+
+// Set a custom button colour
+TapakStore.instance.buttonColor = Colors.deepPurple;
+
 // Listen to changes
 TapakStore.instance.addListener(() {
-  print('Transactions: ${TapakStore.instance.transactions.length}');
+  final count = TapakStore.instance.transactions.length;
+  debugPrint('Tapak: $count requests recorded');
 });
 ```
 
@@ -228,9 +238,9 @@ TapakStore.instance.addListener(() {
 
 ```dart
 TapakInterceptor({
-  TapakStore? store,        // Custom store instance
-  bool enabled = true,      // Enable UI inspector
-  bool logToConsole = false, // Enable console logging
+  TapakStore? store,         // custom store instance (default: TapakStore.instance)
+  bool enabled = true,       // enable UI inspector
+  bool logToConsole = false, // enable console logging
 })
 ```
 
@@ -252,82 +262,45 @@ TapakHttpClient(
 ```dart
 TapakOverlay({
   required Widget child,
-  bool enabled = true,       // Show/hide overlay
-  Alignment alignment = Alignment.bottomRight, // Initial position
+  bool enabled = true,  // set to kDebugMode to hide in release builds
 })
 ```
 
 ### TapakStore
 
 ```dart
-// Singleton instance
+// Singleton
 TapakStore.instance
 
 // Properties
-List<HttpTransaction> transactions  // All recorded transactions
-int maxTransactions                 // Max transactions to keep (default: 200)
+List<HttpTransaction> transactions   // newest-first, read-only
+int maxTransactions                  // cap (default: 200)
+bool showButton                      // show/hide the overlay FAB
+Color? buttonColor                   // null = auto colour scheme
 
 // Methods
-void add(HttpTransaction tx)        // Add transaction
-void update(HttpTransaction tx)     // Notify listeners of update
-void clear()                        // Clear all transactions
-HttpTransaction? findById(String id) // Find by ID
+void add(HttpTransaction tx)
+void update(HttpTransaction tx)
+void clear()
+HttpTransaction? findById(String id)
+```
+
+### HarExporter
+
+```dart
+// Pretty-printed HAR 1.2 JSON string
+HarExporter.toHarString(List<HttpTransaction> transactions)
+
+// Raw Map for custom serialisation
+HarExporter.toHarMap(List<HttpTransaction> transactions)
 ```
 
 ### TapakPrinter
 
 ```dart
-// Static configuration
-TapakPrinter.title = 'MyApp';       // Custom title in logs (default: null)
-TapakPrinter.showHeaders = false;   // Show headers in console (default: false)
+TapakPrinter.title = 'MyApp';      // custom title prefix (default: null)
+TapakPrinter.showHeaders = false;  // include headers in output (default: false)
 ```
-
----
-
-## 📁 Project Structure
-
-```
-lib/
-├── tapak.dart                           # Public API exports
-└── src/
-    ├── client/
-    │   └── tapak_http_client.dart       # http package wrapper
-    ├── interceptor/
-    │   └── tapak_interceptor.dart       # Dio interceptor
-    ├── logger/
-    │   └── tapak_printer.dart           # Console formatter
-    ├── model/
-    │   └── http_transaction.dart        # Data model
-    ├── store/
-    │   └── tapak_store.dart             # State management
-    └── ui/
-        ├── tapak_inspector_screen.dart  # Transaction list
-        ├── tapak_detail_screen.dart     # Detail tabs
-        ├── tapak_overlay.dart           # Floating button
-        └── widgets/
-            ├── body_viewer.dart         # JSON viewer with search
-            ├── method_badge.dart        # HTTP method badge
-            └── status_badge.dart        # Status code badge
-```
-
----
-
-## 🆚 Comparison with Alice
-
-| Feature | Tapak | Alice |
-|---------|-------|-------|
-| Dio support | ✅ | ✅ |
-| http package | ✅ | ✅ |
-| Overlay button | ✅ | ✅ |
-| JSON viewer | ✅ | ✅ |
-| Search in body | ✅ | ✅ |
-| Console logging | ✅ | ❌ |
-| Zero dependencies | ✅ | ❌ |
-| HAR export | ❌ | ✅ |
-| Request replay | ❌ | ✅ |
-| Notifications | ❌ | ✅ |
-
-**Tapak** is designed to be lightweight with zero external dependencies beyond Flutter.
 
 ---
 
@@ -367,18 +340,18 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final dio = Dio()
+  final _dio = Dio()
     ..interceptors.add(TapakInterceptor(
       enabled: kDebugMode,
       logToConsole: kDebugMode,
     ));
 
   Future<void> _fetchPosts() async {
-    await dio.get('https://jsonplaceholder.typicode.com/posts');
+    await _dio.get('https://jsonplaceholder.typicode.com/posts');
   }
 
   Future<void> _createPost() async {
-    await dio.post(
+    await _dio.post(
       'https://jsonplaceholder.typicode.com/posts',
       data: {'title': 'Test', 'body': 'Hello Tapak', 'userId': 1},
     );
@@ -392,15 +365,9 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            ElevatedButton(
-              onPressed: _fetchPosts,
-              child: const Text('GET Posts'),
-            ),
+            ElevatedButton(onPressed: _fetchPosts, child: const Text('GET Posts')),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _createPost,
-              child: const Text('POST Create'),
-            ),
+            ElevatedButton(onPressed: _createPost, child: const Text('POST Create')),
           ],
         ),
       ),
@@ -419,15 +386,15 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see the [LICENSE](LICENSE) file for details.
 
 ---
 
 ## 🙏 Acknowledgments
 
-- [Alice](https://github.com/jhomlala/alice) - Inspiration for this project
-- [Chucker](https://github.com/ChuckerTeam/chucker) - Android HTTP inspector
-- [pretty_dio_logger](https://pub.dev/packages/pretty_dio_logger) - Console logging inspiration
+- [Alice](https://github.com/jhomlala/alice) — inspiration for this project
+- [Chucker](https://github.com/ChuckerTeam/chucker) — Android HTTP inspector
+- [pretty_dio_logger](https://pub.dev/packages/pretty_dio_logger) — console logging inspiration
 
 ---
 

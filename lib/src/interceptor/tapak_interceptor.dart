@@ -43,61 +43,83 @@ class TapakInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    if (enabled || logToConsole) {
-      final id = '${DateTime.now().microsecondsSinceEpoch}_${options.hashCode}';
-      final tx = HttpTransaction(
-        id: id,
-        method: options.method,
-        uri: options.uri,
-        requestHeaders: Map<String, dynamic>.from(options.headers),
-        requestBody: options.data,
-        requestTime: DateTime.now(),
-      );
+    try {
+      if (enabled || logToConsole) {
+        final id =
+            '${DateTime.now().microsecondsSinceEpoch}_${options.hashCode}';
+        final tx = HttpTransaction(
+          id: id,
+          method: options.method,
+          uri: options.uri,
+          requestHeaders: Map<String, dynamic>.from(options.headers),
+          requestBody: options.data,
+          requestTime: DateTime.now(),
+        );
 
-      options.extra[_kIdKey] = id;
-      options.extra[_kTxKey] = tx; // survive to onResponse/onError
+        options.extra[_kIdKey] = id;
+        options.extra[_kTxKey] = tx;
 
-      if (enabled) _store.add(tx);
-      if (logToConsole)
-        TapakPrinter.request(tx, clientType: TapakClientType.dio);
+        if (enabled) {
+          _store.add(tx);
+        }
+        if (logToConsole) {
+          TapakPrinter.request(tx, clientType: TapakClientType.dio);
+        }
+      }
+    } catch (_) {
+      // Never let Tapak break a request.
     }
     handler.next(options);
   }
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    if (enabled || logToConsole) {
-      final tx = _resolveTx(response.requestOptions);
-      if (tx != null) {
-        tx.statusCode = response.statusCode;
-        tx.responseHeaders = _flattenHeaders(response.headers.map);
-        tx.responseBody = response.data;
-        tx.responseTime = DateTime.now();
-        tx.status = TransactionStatus.success;
+    try {
+      if (enabled || logToConsole) {
+        final tx = _resolveTx(response.requestOptions);
+        if (tx != null) {
+          tx.statusCode = response.statusCode;
+          tx.responseHeaders = _flattenHeaders(response.headers.map);
+          tx.responseBody = response.data;
+          tx.responseTime = DateTime.now();
+          tx.status = TransactionStatus.success;
 
-        if (enabled) _store.update(tx);
-        if (logToConsole)
-          TapakPrinter.response(tx, clientType: TapakClientType.dio);
+          if (enabled) {
+            _store.update(tx);
+          }
+          if (logToConsole) {
+            TapakPrinter.response(tx, clientType: TapakClientType.dio);
+          }
+        }
       }
+    } catch (_) {
+      // Never let Tapak break a response.
     }
     handler.next(response);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    if (enabled || logToConsole) {
-      final tx = _resolveTx(err.requestOptions);
-      if (tx != null) {
-        tx.statusCode = err.response?.statusCode;
-        tx.responseBody = err.response?.data;
-        tx.responseTime = DateTime.now();
-        tx.error = err.message;
-        tx.status = TransactionStatus.error;
+    try {
+      if (enabled || logToConsole) {
+        final tx = _resolveTx(err.requestOptions);
+        if (tx != null) {
+          tx.statusCode = err.response?.statusCode;
+          tx.responseBody = err.response?.data;
+          tx.responseTime = DateTime.now();
+          tx.error = err.message;
+          tx.status = TransactionStatus.error;
 
-        if (enabled) _store.update(tx);
-        if (logToConsole)
-          TapakPrinter.response(tx, clientType: TapakClientType.dio);
+          if (enabled) {
+            _store.update(tx);
+          }
+          if (logToConsole) {
+            TapakPrinter.response(tx, clientType: TapakClientType.dio);
+          }
+        }
       }
+    } catch (_) {
+      // Never let Tapak break an error handler.
     }
     handler.next(err);
   }

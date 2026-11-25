@@ -1,4 +1,4 @@
-import 'dart:developer' as developer;
+import 'package:flutter/foundation.dart';
 import '../model/http_transaction.dart';
 
 /// HTTP client type for logging.
@@ -11,55 +11,55 @@ enum TapakClientType { dio, http }
 class TapakPrinter {
   const TapakPrinter._();
 
-  static const _name = 'Tapak Console';
-  static const _w = 70; // inner width
+  static const _w = 64; // total width of horizontal rule lines
 
   /// Whether to log headers. Defaults to `false`.
   static bool showHeaders = false;
 
-  /// Custom title to show in logs. Defaults to `null` (no title).
+  /// Custom title shown in every log line. Defaults to `null`.
   static String? title;
 
-  // Box characters
-  static final _top = '╔${'═' * _w}╗';
-  static final _mid = '╠${'═' * _w}╣';
-  static final _bot = '╚${'═' * _w}╝';
+  // ── Box helpers ─────────────────────────────────────────────────────────────
 
-  static String _row(String s) {
-    // Pad content to exactly _w - 2, then wrap with spaces
-    final padded =
-        s.length > _w - 2 ? s.substring(0, _w - 2) : s.padRight(_w - 2);
-    return '║ $padded ║';
-  }
+  /// Top border with label embedded: ╔═ [label] ══════
+  static String _top(String label) => '╔═ $label '.padRight(_w, '═');
+
+  /// Left-border content line: ║  text
+  static String _row(String s) => '║  $s';
+
+  /// Section divider: ╠════════
+  static String _div() => '╠${'═' * (_w - 1)}';
+
+  /// Bottom border: ╚════════
+  static String _bot() => '╚${'═' * (_w - 1)}';
+
+  // ── Public API ───────────────────────────────────────────────────────────────
 
   static void request(HttpTransaction tx, {TapakClientType? clientType}) {
-    final buf = StringBuffer()..writeln(_top);
+    final parts = <String>[];
+    if (title != null) parts.add('[$title]');
+    parts.add('>> REQUEST');
+    if (clientType != null) parts.add('(${clientType.name})');
 
-    // Title row
-    final titleParts = <String>[];
-    if (title != null) titleParts.add('[$title]');
-    titleParts.add('>> REQUEST');
-    if (clientType != null) titleParts.add('(${clientType.name})');
-    buf.writeln(_row(titleParts.join('  ')));
-
-    buf.writeln(_mid);
-    _writeWrapped('${tx.method}  ${tx.uri}', buf);
+    final buf = StringBuffer()
+      ..writeln(_top('[Tapak] ${parts.join('  ')}'))
+      ..writeln(_row('${tx.method}  ${tx.uri}'));
 
     if (showHeaders && tx.requestHeaders.isNotEmpty) {
-      buf.writeln(_mid);
+      buf.writeln(_div());
       for (final e in tx.requestHeaders.entries) {
-        _writeWrapped('${e.key}: ${e.value}', buf);
+        _appendWrapped('${e.key}: ${e.value}', buf);
       }
     }
 
     final body = tx.formattedRequestBody;
     if (body.isNotEmpty && body != '{}' && body != '[]') {
-      buf.writeln(_mid);
-      _writeBody(body, buf);
+      buf.writeln(_div());
+      _appendBody(body, buf);
     }
 
-    buf.write(_bot);
-    developer.log(buf.toString(), name: _name);
+    buf.write(_bot());
+    debugPrint(buf.toString());
   }
 
   static void response(HttpTransaction tx, {TapakClientType? clientType}) {
@@ -67,86 +67,69 @@ class TapakPrinter {
     final label = isError ? '<< ERROR' : '<< RESPONSE';
     final status = tx.statusCode?.toString() ?? 'ERR';
 
-    final buf = StringBuffer()..writeln(_top);
+    final parts = <String>[];
+    if (title != null) parts.add('[$title]');
+    parts.add('$label  [$status]  ${tx.durationText}');
+    if (clientType != null) parts.add('(${clientType.name})');
 
-    // Title row
-    final titleParts = <String>[];
-    if (title != null) titleParts.add('[$title]');
-    titleParts.add('$label  [$status]  ${tx.durationText}');
-    if (clientType != null) titleParts.add('(${clientType.name})');
-    buf.writeln(_row(titleParts.join('  ')));
-
-    buf.writeln(_mid);
-    _writeWrapped('${tx.method}  ${tx.uri.path}', buf);
+    final buf = StringBuffer()
+      ..writeln(_top('[Tapak] ${parts.join('  ')}'))
+      ..writeln(_row('${tx.method}  ${tx.uri.path}'));
 
     if (tx.error != null) {
-      buf.writeln(_mid);
-      _writeWrapped('! ${tx.error}', buf);
+      buf.writeln(_div());
+      _appendWrapped('! ${tx.error!}', buf);
     }
 
     if (showHeaders &&
         tx.responseHeaders != null &&
         tx.responseHeaders!.isNotEmpty) {
-      buf.writeln(_mid);
+      buf.writeln(_div());
       for (final e in tx.responseHeaders!.entries) {
-        _writeWrapped('${e.key}: ${e.value}', buf);
+        _appendWrapped('${e.key}: ${e.value}', buf);
       }
     }
 
     final body = tx.formattedResponseBody;
     if (body.isNotEmpty && body != '{}' && body != '[]') {
-      buf.writeln(_mid);
-      _writeBody(body, buf);
+      buf.writeln(_div());
+      _appendBody(body, buf);
     }
 
-    buf.write(_bot);
-    developer.log(buf.toString(), name: _name);
+    buf.write(_bot());
+    debugPrint(buf.toString());
   }
 
-  static void _writeBody(String body, StringBuffer buf) {
-    for (final line in body.split('\n')) {
-      _writeWrapped(line, buf);
+  // ── Private helpers ──────────────────────────────────────────────────────────
+
+  static void _appendBody(String body, StringBuffer buf) {
+    const maxLines = 100;
+    final lines = body.split('\n');
+    final limit = lines.length > maxLines ? maxLines : lines.length;
+    for (var i = 0; i < limit; i++) {
+      _appendWrapped(lines[i], buf);
+    }
+    if (lines.length > maxLines) {
+      buf.writeln(_row('… ${lines.length - maxLines} more lines (truncated)'));
     }
   }
 
-  /// Write text with proper wrapping to fit inside the box
-  static void _writeWrapped(String text, StringBuffer buf) {
-    final maxLen = _w - 2; // Content width between the spaces
-
-    // Handle embedded newlines first
-    for (final line in text.split('\n')) {
-      _wrapLine(line, maxLen, buf);
-    }
-  }
-
-  static void _wrapLine(String text, int maxLen, StringBuffer buf) {
-    if (text.isEmpty) {
-      buf.writeln(_row(''));
-      return;
-    }
-
+  static void _appendWrapped(String text, StringBuffer buf) {
+    const maxLen = _w - 3;
     if (text.length <= maxLen) {
       buf.writeln(_row(text));
       return;
     }
-
-    // Wrap long lines
     var remaining = text;
     while (remaining.isNotEmpty) {
       if (remaining.length <= maxLen) {
         buf.writeln(_row(remaining));
         break;
       }
-
-      // Try to break at a space within maxLen
-      var breakAt = remaining.lastIndexOf(' ', maxLen);
-      if (breakAt <= 0) {
-        // No space found, hard break at maxLen
-        breakAt = maxLen;
-      }
-
-      buf.writeln(_row(remaining.substring(0, breakAt)));
-      remaining = remaining.substring(breakAt).trimLeft();
+      var cut = remaining.lastIndexOf(' ', maxLen);
+      if (cut <= 0) cut = maxLen;
+      buf.writeln(_row(remaining.substring(0, cut)));
+      remaining = remaining.substring(cut).trimLeft();
     }
   }
 }

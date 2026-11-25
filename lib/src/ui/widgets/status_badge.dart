@@ -23,8 +23,25 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = statusCode?.toString() ??
-        (status == TransactionStatus.pending ? '···' : 'ERR');
+    if (status == TransactionStatus.pending) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: const Color(0xFF9E9E9E),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: const SizedBox(
+          width: 11,
+          height: 11,
+          child: CircularProgressIndicator(
+            strokeWidth: 1.5,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+        ),
+      );
+    }
+
+    final label = statusCode?.toString() ?? 'ERR';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
