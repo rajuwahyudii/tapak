@@ -1,7 +1,7 @@
 name: tapak
-description: "In-app HTTP inspector for Flutter. Debug API calls like Chucker — right inside your app."
+description: "Flutter in-app HTTP inspector with request replay, HAR export, custom debug logger, draggable iOS-style overlay, syntax-highlighted body viewer, and formatted console logging."
 version: 0.1.0
-homepage: https://github.com/your-username/tapak
+homepage: https://github.com/rajuwahyudii/tapak
 
 environment:
   sdk: ^3.5.0
