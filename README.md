@@ -31,6 +31,9 @@ Inspired by [Alice](https://github.com/jhomlala/alice) and [Chucker](https://git
 <p align="center">
   <img src="assets/Screenshot_1795789133.png" width="280" alt="QA Simulation - Request Replay">
 </p>
+<p align="center">
+  <em>Replay any request with one tap</em>
+</p>
 
 - ✅ Works with both **Dio** and **http** requests
 - ✅ Preserves original method, URL, headers, and body
@@ -89,10 +92,16 @@ Then tap any request → **⋮** menu → **Replay request** 🎉
   <img src="assets/response.png" width="250" alt="Response view">
   <img src="assets/search.png" width="250" alt="Search functionality">
 </p>
+<p align="center">
+  <em>JSON Response Viewer</em> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <em>Search in Body</em>
+</p>
 
 <p align="center">
   <img src="assets/export and replay.png" width="250" alt="Export and replay">
   <img src="assets/rename.png" width="250" alt="Rename feature">
+</p>
+<p align="center">
+  <em>Export HAR & Replay</em> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <em>Request List</em>
 </p>
 
 ---
