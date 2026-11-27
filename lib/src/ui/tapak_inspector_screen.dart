@@ -733,10 +733,12 @@ class _QAToolsSheetState extends State<_QAToolsSheet> {
 
         // Describe the injection method so QA knows what to expect server-side.
         final injectionParts = <String>[];
-        if (cfg.headerName != null)
+        if (cfg.headerName != null) {
           injectionParts.add('header: ${cfg.headerName}');
-        if (cfg.queryParamName != null)
+        }
+        if (cfg.queryParamName != null) {
           injectionParts.add('param: ${cfg.queryParamName}');
+        }
         final injectionLabel = injectionParts.isEmpty
             ? 'No injection configured'
             : injectionParts.join(' · ');
