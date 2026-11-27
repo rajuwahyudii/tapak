@@ -37,6 +37,29 @@ Inspired by [Alice](https://github.com/jhomlala/alice) and [Chucker](https://git
 - ✅ New response appears in the list with a **replay** badge
 - ✅ No extra setup required — just use Tapak as normal
 
+### Quick Setup
+
+**For Dio:**
+```dart
+final dio = Dio()
+  ..interceptors.add(TapakInterceptor(enabled: true));
+```
+
+**For http:**
+```dart
+final client = TapakHttpClient(http.Client(), enabled: true);
+```
+
+**Add overlay button:**
+```dart
+MaterialApp(
+  builder: (context, child) => TapakOverlay(child: child!),
+  home: MyHomePage(),
+)
+```
+
+Then tap any request → **⋮** menu → **Replay request** 🎉
+
 ---
 
 ## ✨ Features
