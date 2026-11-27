@@ -29,7 +29,7 @@ Inspired by [Alice](https://github.com/jhomlala/alice) and [Chucker](https://git
 **Re-run any API request with one tap** — perfect for QA testing, debugging edge cases, and verifying fixes without navigating through your app.
 
 <p align="center">
-  <img src="assets/export and replay.png" width="280" alt="Replay feature">
+  <img src="assets/Screenshot_1795789133.png" width="280" alt="QA Simulation - Request Replay">
 </p>
 
 - ✅ Works with both **Dio** and **http** requests
