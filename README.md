@@ -33,20 +33,22 @@ Inspired by [Alice](https://github.com/jhomlala/alice) and [Chucker](https://git
 | 🎨 **Custom Button Color** | Set any colour for the overlay button at runtime |
 | 👁️ **Toggle Button** | Show or hide the overlay button without restarting |
 | 📤 **HAR Export** | Export all recorded requests as HAR 1.2 (copied to clipboard) |
+| 🔄 **Request Replay** | Re-run any request with one tap for QA testing |
 | 🔢 **Binary Body Decoding** | `List<int>` byte-array responses decoded to UTF-8 automatically |
 
 ---
 
 ## 📸 Screenshots
 
-<!-- Add your screenshots here -->
-<!--
 <p align="center">
-  <img src="screenshots/list.png" width="200">
-  <img src="screenshots/detail.png" width="200">
-  <img src="screenshots/json.png" width="200">
+  <img src="assets/response.png" width="250" alt="Response view">
+  <img src="assets/search.png" width="250" alt="Search functionality">
 </p>
--->
+
+<p align="center">
+  <img src="assets/export and replay.png" width="250" alt="Export and replay">
+  <img src="assets/rename.png" width="250" alt="Rename feature">
+</p>
 
 ---
 
@@ -170,6 +172,26 @@ import 'package:tapak/tapak.dart';
 final har = HarExporter.toHarString(TapakStore.instance.transactions);
 // or as a Map for custom serialisation:
 final map = HarExporter.toHarMap(TapakStore.instance.transactions);
+```
+
+### Request Replay (QA Simulation)
+
+Re-run any recorded request with one tap — perfect for QA testing and debugging.
+
+1. Open any transaction detail screen
+2. Tap the **⋮** menu → **Replay request**
+3. The request is re-sent with the same method, URL, headers, and body
+4. A new transaction appears in the list marked with a 🔄 **replay** badge
+
+Replayed requests use the `http` package internally, so they work regardless of whether the original was made with Dio or http.
+
+```dart
+// Programmatic replay
+import 'package:tapak/tapak.dart';
+
+final original = TapakStore.instance.transactions.first;
+final replayed = await TapakReplayer.replay(original);
+print('Replayed: ${replayed.statusCode}');
 ```
 
 ---

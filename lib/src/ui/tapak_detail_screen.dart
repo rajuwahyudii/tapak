@@ -248,14 +248,48 @@ class _RequestTab extends StatelessWidget {
 // Response tab
 // ---------------------------------------------------------------------------
 
-class _ResponseTab extends StatelessWidget {
+class _ResponseTab extends StatefulWidget {
   const _ResponseTab({required this.tx});
   final HttpTransaction tx;
 
   @override
+  State<_ResponseTab> createState() => _ResponseTabState();
+}
+
+class _ResponseTabState extends State<_ResponseTab>
+    with AutomaticKeepAliveClientMixin {
+  String? _body;
+  bool _loading = true;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Defer body formatting to next frame to avoid blocking tab switch.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final body = widget.tx.status == TransactionStatus.pending
+          ? ''
+          : widget.tx.formattedResponseBody;
+      setState(() {
+        _body = body;
+        _loading = false;
+      });
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isPending = tx.status == TransactionStatus.pending;
-    final body = isPending ? '' : tx.formattedResponseBody;
+    super.build(context);
+    final isPending = widget.tx.status == TransactionStatus.pending;
+
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final body = _body ?? '';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

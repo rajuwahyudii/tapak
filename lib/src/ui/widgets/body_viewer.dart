@@ -26,7 +26,8 @@ class _BodyViewerState extends State<BodyViewer> {
   String _query = '';
   int _currentMatch = 0;
 
-  // Determine once whether body is valid JSON (avoids jsonDecode on every rebuild).
+  // Determine once whether body is valid JSON.
+  // ponytail: skip full jsonDecode — just check first non-whitespace char.
   bool _isJson = false;
 
   @override
@@ -42,12 +43,8 @@ class _BodyViewerState extends State<BodyViewer> {
   }
 
   void _checkJson() {
-    try {
-      jsonDecode(widget.body);
-      _isJson = true;
-    } catch (_) {
-      _isJson = false;
-    }
+    final trimmed = widget.body.trimLeft();
+    _isJson = trimmed.startsWith('{') || trimmed.startsWith('[');
   }
 
   @override
@@ -111,10 +108,16 @@ class _BodyViewerState extends State<BodyViewer> {
       );
     }
 
+    // Truncate large bodies for display — full copy still available via button.
+    const maxDisplay = 8000;
+    final displayBody = widget.body.length > maxDisplay
+        ? '${widget.body.substring(0, maxDisplay)}\n\n... (truncated, ${widget.body.length} chars total — use copy button for full body)'
+        : widget.body;
+
     // Count matches for the search bar counter.
     int matchCount = 0;
     if (_query.isNotEmpty) {
-      final lower = widget.body.toLowerCase();
+      final lower = displayBody.toLowerCase();
       var i = 0;
       while (true) {
         i = lower.indexOf(_query, i);
@@ -125,23 +128,20 @@ class _BodyViewerState extends State<BodyViewer> {
     }
 
     // Build content widget.
-    // - Searching  → _HighlightedText (match keys + scroll-to-match)
-    // - JSON quiet → _SyntaxHighlightedJson (single RichText, O(chars) not O(nodes))
-    // - Plain text → SelectableText
     final newMatchKeys = <GlobalKey>[];
     Widget content;
     if (_query.isNotEmpty) {
       content = _HighlightedText(
-        text: widget.body,
+        text: displayBody,
         query: _query,
         matchKeys: newMatchKeys,
         currentMatch: _currentMatch,
       );
     } else if (_isJson) {
-      content = _SyntaxHighlightedJson(json: widget.body);
+      content = _SyntaxHighlightedJson(json: displayBody);
     } else {
-      content = SelectableText(
-        widget.body,
+      content = Text(
+        displayBody,
         style: const TextStyle(
           fontFamily: 'monospace',
           fontSize: 12,
@@ -268,9 +268,8 @@ class _BodyViewerState extends State<BodyViewer> {
 }
 
 // ---------------------------------------------------------------------------
-// Syntax-highlighted JSON renderer — single RichText pass, O(chars) widget cost.
-// ponytail: replaces the old recursive _JsonView which created one widget per
-// JSON node. For a 500-node response that was ~1500 render objects; now it's 1.
+// Syntax-highlighted JSON renderer.
+// ponytail: regex on large text freezes UI. Skip highlighting for >10KB.
 // ---------------------------------------------------------------------------
 
 class _SyntaxHighlightedJson extends StatelessWidget {
@@ -278,18 +277,25 @@ class _SyntaxHighlightedJson extends StatelessWidget {
 
   final String json;
 
-  // Groups: 1+2 = key string + colon, 3 = string value,
-  //         4 = number, 5 = keyword (true/false/null), 6 = bracket/punct.
-  static final _re = RegExp(
-    r'("(?:[^"\]|\.)*")(\s*:)'
-    r'|("(?:[^"\]|\.)*")'
-    r'|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)'
-    r'|(true|false|null)'
-    r'|([{}\[\],:])',
-  );
+  static const _maxHighlight = 10000; // chars - skip highlighting above this
 
   @override
   Widget build(BuildContext context) {
+    // For large JSON, just show plain monospace text — no highlighting.
+    if (json.length > _maxHighlight) {
+      return Text(
+        json,
+        style: TextStyle(
+          fontFamily: 'monospace',
+          fontSize: 12,
+          height: 1.5,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFFD4D4D4)
+              : const Color(0xFF333333),
+        ),
+      );
+    }
+
     final dark = Theme.of(context).brightness == Brightness.dark;
 
     final keyC = dark ? const Color(0xFF9CDCFE) : const Color(0xFF0451A5);
@@ -298,30 +304,34 @@ class _SyntaxHighlightedJson extends StatelessWidget {
     final kwC = dark ? const Color(0xFF569CD6) : const Color(0xFF0000FF);
     final plainC = dark ? const Color(0xFFD4D4D4) : const Color(0xFF333333);
 
+    // Groups: 1+2 = key string + colon, 3 = string value,
+    //         4 = number, 5 = keyword (true/false/null), 6 = bracket/punct.
+    final re = RegExp(
+      r'("(?:[^"\]|\.)*")(\s*:)'
+      r'|("(?:[^"\]|\.)*")'
+      r'|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)'
+      r'|(true|false|null)'
+      r'|([{}\[\],:])',
+    );
+
     final spans = <TextSpan>[];
     int last = 0;
 
-    for (final m in _re.allMatches(json)) {
+    for (final m in re.allMatches(json)) {
       if (m.start > last) {
-        // Whitespace / indentation — unstyled, preserve as-is.
         spans.add(TextSpan(text: json.substring(last, m.start)));
       }
 
       if (m.group(1) != null) {
-        // Key  ("name":)
         spans.add(TextSpan(text: m.group(1), style: TextStyle(color: keyC)));
         spans.add(TextSpan(text: m.group(2), style: TextStyle(color: plainC)));
       } else if (m.group(3) != null) {
-        // String value
         spans.add(TextSpan(text: m.group(3), style: TextStyle(color: strC)));
       } else if (m.group(4) != null) {
-        // Number
         spans.add(TextSpan(text: m.group(4), style: TextStyle(color: numC)));
       } else if (m.group(5) != null) {
-        // Keyword
         spans.add(TextSpan(text: m.group(5), style: TextStyle(color: kwC)));
       } else {
-        // Bracket / punctuation
         spans.add(TextSpan(text: m.group(6), style: TextStyle(color: plainC)));
       }
 
@@ -332,7 +342,7 @@ class _SyntaxHighlightedJson extends StatelessWidget {
       spans.add(TextSpan(text: json.substring(last)));
     }
 
-    return SelectableText.rich(
+    return Text.rich(
       TextSpan(
         children: spans,
         style: TextStyle(
@@ -366,7 +376,7 @@ class _HighlightedText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (query.isEmpty) {
-      return SelectableText(
+      return Text(
         text,
         style: const TextStyle(
           fontFamily: 'monospace',
@@ -418,7 +428,7 @@ class _HighlightedText extends StatelessWidget {
       spans.add(TextSpan(text: text.substring(lastEnd)));
     }
 
-    return SelectableText.rich(
+    return Text.rich(
       TextSpan(
         style: const TextStyle(
           fontFamily: 'monospace',
