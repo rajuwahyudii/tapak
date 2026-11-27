@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_library_use
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -332,9 +333,9 @@ class _InspectorOverlay extends StatelessWidget {
           final mode = TapakStore.instance.inspectorThemeMode;
           final platformBrightness = MediaQuery.platformBrightnessOf(context);
           final brightness = switch (mode) {
-            ThemeMode.light => Brightness.light,
-            ThemeMode.dark => Brightness.dark,
-            ThemeMode.system => platformBrightness,
+            TapakThemeMode.light => Brightness.light,
+            TapakThemeMode.dark => Brightness.dark,
+            TapakThemeMode.system => platformBrightness,
           };
           return Theme(
             data: brightness == Brightness.dark

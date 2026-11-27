@@ -1,6 +1,7 @@
+import 'dart:ui' show Color;
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tapak/tapak.dart';
 
@@ -43,7 +44,7 @@ void _fullReset() {
     ..clearLogs()
     ..showButton = true
     ..buttonColor = null
-    ..inspectorThemeMode = ThemeMode.system
+    ..inspectorThemeMode = TapakThemeMode.system
     ..maxTransactions = 200
     ..maxLogs = 500;
 }
@@ -245,20 +246,20 @@ void main() {
       void listener() => notified++;
       TapakStore.instance.addListener(listener);
 
-      TapakStore.instance.inspectorThemeMode = ThemeMode.light;
-      expect(TapakStore.instance.inspectorThemeMode, ThemeMode.light);
+      TapakStore.instance.inspectorThemeMode = TapakThemeMode.light;
+      expect(TapakStore.instance.inspectorThemeMode, TapakThemeMode.light);
       expect(notified, 1);
 
-      TapakStore.instance.inspectorThemeMode = ThemeMode.dark;
-      expect(TapakStore.instance.inspectorThemeMode, ThemeMode.dark);
+      TapakStore.instance.inspectorThemeMode = TapakThemeMode.dark;
+      expect(TapakStore.instance.inspectorThemeMode, TapakThemeMode.dark);
       expect(notified, 2);
 
-      TapakStore.instance.inspectorThemeMode = ThemeMode.system;
-      expect(TapakStore.instance.inspectorThemeMode, ThemeMode.system);
+      TapakStore.instance.inspectorThemeMode = TapakThemeMode.system;
+      expect(TapakStore.instance.inspectorThemeMode, TapakThemeMode.system);
       expect(notified, 3);
 
       // Setting the same value must NOT notify.
-      TapakStore.instance.inspectorThemeMode = ThemeMode.system;
+      TapakStore.instance.inspectorThemeMode = TapakThemeMode.system;
       expect(notified, 3);
 
       TapakStore.instance.removeListener(listener);

@@ -1,6 +1,22 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import '../model/http_transaction.dart';
 import '../model/tapak_log_entry.dart';
+import '../qa/tapak_simulated_date_config.dart';
+
+/// Theme mode for the Tapak inspector UI.
+///
+/// Mirrors the values of Flutter's [ThemeMode] but avoids a direct dependency
+/// on `package:flutter/material.dart` from the store layer.
+enum TapakThemeMode {
+  /// Follow the device's system brightness.
+  system,
+
+  /// Always use a light theme.
+  light,
+
+  /// Always use a dark theme.
+  dark,
+}
 
 /// Central store for HTTP transactions.
 ///
@@ -55,10 +71,10 @@ class TapakStore extends ChangeNotifier {
   }
 
   /// Theme mode for the inspector UI.
-  /// Defaults to [ThemeMode.system] (follows the device setting).
-  ThemeMode _inspectorThemeMode = ThemeMode.system;
-  ThemeMode get inspectorThemeMode => _inspectorThemeMode;
-  set inspectorThemeMode(ThemeMode value) {
+  /// Defaults to [TapakThemeMode.system] (follows the device setting).
+  TapakThemeMode _inspectorThemeMode = TapakThemeMode.system;
+  TapakThemeMode get inspectorThemeMode => _inspectorThemeMode;
+  set inspectorThemeMode(TapakThemeMode value) {
     if (_inspectorThemeMode == value) return;
     _inspectorThemeMode = value;
     notifyListeners();
@@ -121,6 +137,40 @@ class TapakStore extends ChangeNotifier {
       return null;
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // QA tools — date simulation
+  // ---------------------------------------------------------------------------
+
+  /// The simulated date injected into outgoing requests.
+  ///
+  /// The device clock is never touched — this value is only forwarded to the
+  /// server so QA can test date-sensitive backend logic without changing system
+  /// time.
+  ///
+  /// Set to `null` (default) to disable simulation.
+  ///
+  /// ```dart
+  /// // Simulate "today is 15 Jan 2025":
+  /// TapakStore.instance.simulatedDate = DateTime(2025, 1, 15);
+  ///
+  /// // Turn off:
+  /// TapakStore.instance.simulatedDate = null;
+  /// ```
+  DateTime? _simulatedDate;
+  DateTime? get simulatedDate => _simulatedDate;
+  set simulatedDate(DateTime? value) {
+    if (_simulatedDate == value) return;
+    _simulatedDate = value;
+    notifyListeners();
+  }
+
+  /// Controls how [simulatedDate] is injected into requests.
+  ///
+  /// Defaults to injecting the date as the `X-Simulated-Date` HTTP header.
+  /// See [TapakSimulatedDateConfig] for all options.
+  TapakSimulatedDateConfig simulatedDateConfig =
+      const TapakSimulatedDateConfig();
 
   // ---------------------------------------------------------------------------
   // Custom logs

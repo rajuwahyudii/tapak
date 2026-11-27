@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+// ignore_for_file: deprecated_library_use
+import 'dart:ui' show Color;
 
 /// Severity level for a [TapakLogEntry].
 enum TapakLogLevel {

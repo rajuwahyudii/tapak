@@ -9,6 +9,11 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+  errors:
+    # pub.dev runs analysis on Flutter pre-releases where flutter/material.dart
+    # has been annotated @deprecated in favour of package:material_ui.
+    # Suppress until material_ui reaches stable and we can migrate.
+    deprecated_member_use: ignore
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_library_use
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -280,8 +281,8 @@ class _SyntaxHighlightedJson extends StatelessWidget {
   // Groups: 1+2 = key string + colon, 3 = string value,
   //         4 = number, 5 = keyword (true/false/null), 6 = bracket/punct.
   static final _re = RegExp(
-    r'("(?:[^"\\]|\\.)*")(\s*:)'
-    r'|("(?:[^"\\]|\\.)*")'
+    r'("(?:[^"\]|\.)*")(\s*:)'
+    r'|("(?:[^"\]|\.)*")'
     r'|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)'
     r'|(true|false|null)'
     r'|([{}\[\],:])',

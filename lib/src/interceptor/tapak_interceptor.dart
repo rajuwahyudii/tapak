@@ -66,6 +66,19 @@ class TapakInterceptor extends Interceptor {
           TapakPrinter.request(tx, clientType: TapakClientType.dio);
         }
       }
+
+      // QA: inject simulated date if set.
+      final sim = _store.simulatedDate;
+      if (sim != null) {
+        final cfg = _store.simulatedDateConfig;
+        final formatted = cfg.formatDate(sim);
+        if (cfg.headerName != null) {
+          options.headers[cfg.headerName!] = formatted;
+        }
+        if (cfg.queryParamName != null) {
+          options.queryParameters[cfg.queryParamName!] = formatted;
+        }
+      }
     } catch (_) {
       // Never let Tapak break a request.
     }

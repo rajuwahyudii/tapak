@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_library_use
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -16,7 +17,8 @@ enum _MenuAction {
   themeLight,
   themeDark,
   themeSystem,
-  viewLogs
+  viewLogs,
+  qaTools,
 }
 
 /// Full-screen HTTP inspector — lists all recorded transactions.
@@ -157,15 +159,22 @@ class _TapakInspectorScreenState extends State<TapakInspectorScreen> {
       case _MenuAction.clear:
         _confirmClear();
       case _MenuAction.themeLight:
-        TapakStore.instance.inspectorThemeMode = ThemeMode.light;
+        TapakStore.instance.inspectorThemeMode = TapakThemeMode.light;
       case _MenuAction.themeDark:
-        TapakStore.instance.inspectorThemeMode = ThemeMode.dark;
+        TapakStore.instance.inspectorThemeMode = TapakThemeMode.dark;
       case _MenuAction.themeSystem:
-        TapakStore.instance.inspectorThemeMode = ThemeMode.system;
+        TapakStore.instance.inspectorThemeMode = TapakThemeMode.system;
       case _MenuAction.viewLogs:
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const TapakLogsScreen()),
+        );
+      case _MenuAction.qaTools:
+        showModalBottomSheet<void>(
+          context: context,
+          useRootNavigator: false,
+          isScrollControlled: true,
+          builder: (_) => const _QAToolsSheet(),
         );
     }
   }
@@ -204,7 +213,7 @@ class _TapakInspectorScreenState extends State<TapakInspectorScreen> {
                     child: _MenuItem(
                       icon: Icons.light_mode_outlined,
                       label: 'Light mode',
-                      checked: mode == ThemeMode.light,
+                      checked: mode == TapakThemeMode.light,
                     ),
                   ),
                   PopupMenuItem(
@@ -212,7 +221,7 @@ class _TapakInspectorScreenState extends State<TapakInspectorScreen> {
                     child: _MenuItem(
                       icon: Icons.dark_mode_outlined,
                       label: 'Dark mode',
-                      checked: mode == ThemeMode.dark,
+                      checked: mode == TapakThemeMode.dark,
                     ),
                   ),
                   PopupMenuItem(
@@ -220,7 +229,7 @@ class _TapakInspectorScreenState extends State<TapakInspectorScreen> {
                     child: _MenuItem(
                       icon: Icons.brightness_auto_outlined,
                       label: 'System default',
-                      checked: mode == ThemeMode.system,
+                      checked: mode == TapakThemeMode.system,
                     ),
                   ),
                   const PopupMenuDivider(),
@@ -229,6 +238,18 @@ class _TapakInspectorScreenState extends State<TapakInspectorScreen> {
                     child: _MenuItem(
                       icon: Icons.terminal,
                       label: 'View logs',
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: _MenuAction.qaTools,
+                    child: ListenableBuilder(
+                      listenable: TapakStore.instance,
+                      builder: (context, _) => _MenuItem(
+                        icon: Icons.science_outlined,
+                        label: 'QA Tools',
+                        active: TapakStore.instance.simulatedDate != null,
+                      ),
                     ),
                   ),
                   const PopupMenuDivider(),
@@ -301,25 +322,37 @@ class _TapakInspectorScreenState extends State<TapakInspectorScreen> {
                   )
                   .toList();
 
+          final sim = TapakStore.instance.simulatedDate;
+
+          Widget list;
           if (items.isEmpty) {
-            return _EmptyState(hasTransactions: all.isNotEmpty);
+            list = _EmptyState(hasTransactions: all.isNotEmpty);
+          } else {
+            list = ListView.separated(
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, i) => _TransactionTile(
+                tx: items[i],
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TapakDetailScreen(transaction: items[i]),
+                  ),
+                ),
+                onLongPress: items[i].status != TransactionStatus.pending
+                    ? () => _showReplaySheet(items[i])
+                    : null,
+              ),
+            );
           }
 
-          return ListView.separated(
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, i) => _TransactionTile(
-              tx: items[i],
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => TapakDetailScreen(transaction: items[i]),
-                ),
-              ),
-              onLongPress: items[i].status != TransactionStatus.pending
-                  ? () => _showReplaySheet(items[i])
-                  : null,
-            ),
+          if (sim == null) return list;
+
+          return Column(
+            children: [
+              _SimulatedDateBanner(date: sim),
+              Expanded(child: list),
+            ],
           );
         },
       ),
@@ -331,17 +364,41 @@ class _TapakInspectorScreenState extends State<TapakInspectorScreen> {
 
 class _MenuItem extends StatelessWidget {
   const _MenuItem(
-      {required this.icon, required this.label, this.checked = false});
+      {required this.icon,
+      required this.label,
+      this.checked = false,
+      this.active = false});
 
   final IconData icon;
   final String label;
   final bool checked;
 
+  /// Shows a small coloured dot — used to indicate a QA feature is active.
+  final bool active;
+
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 20),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Icon(icon, size: 20),
+            if (active)
+              Positioned(
+                top: -2,
+                right: -2,
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade700,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
         const SizedBox(width: 12),
         Expanded(child: Text(label)),
         if (checked)
@@ -565,6 +622,233 @@ class _ReplaySheet extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// QA Tools
+// ---------------------------------------------------------------------------
+
+class _SimulatedDateBanner extends StatelessWidget {
+  const _SimulatedDateBanner({required this.date});
+  final DateTime date;
+
+  static String _label(DateTime d) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${d.day} ${months[d.month - 1]} ${d.year}'
+        ', ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final amber = Colors.amber.shade800;
+    return ColoredBox(
+      color: Colors.amber.withAlpha(28),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+        child: Row(
+          children: [
+            Icon(Icons.science_outlined, size: 15, color: amber),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Simulated date: ${_label(date)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: amber,
+                ),
+              ),
+            ),
+            GestureDetector(
+              onTap: () => TapakStore.instance.simulatedDate = null,
+              child: Icon(Icons.close, size: 15, color: amber),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+class _QAToolsSheet extends StatefulWidget {
+  const _QAToolsSheet();
+
+  @override
+  State<_QAToolsSheet> createState() => _QAToolsSheetState();
+}
+
+class _QAToolsSheetState extends State<_QAToolsSheet> {
+  Future<void> _pickDate() async {
+    final store = TapakStore.instance;
+    final initial = store.simulatedDate ?? DateTime.now();
+
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (date == null || !mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (!mounted) return;
+
+    store.simulatedDate = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time?.hour ?? initial.hour,
+      time?.minute ?? initial.minute,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: TapakStore.instance,
+      builder: (context, _) {
+        final sim = TapakStore.instance.simulatedDate;
+        final cfg = TapakStore.instance.simulatedDateConfig;
+        final subtitleColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+        // Describe the injection method so QA knows what to expect server-side.
+        final injectionParts = <String>[];
+        if (cfg.headerName != null)
+          injectionParts.add('header: ${cfg.headerName}');
+        if (cfg.queryParamName != null)
+          injectionParts.add('param: ${cfg.queryParamName}');
+        final injectionLabel = injectionParts.isEmpty
+            ? 'No injection configured'
+            : injectionParts.join(' · ');
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title
+                Row(
+                  children: [
+                    const Icon(Icons.science_outlined, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'QA Tools',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Section: Simulated Date
+                Text(
+                  'Simulated Date',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Device clock stays unchanged. '
+                  'The chosen date is forwarded to the server on every request.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: subtitleColor,
+                      ),
+                ),
+                const SizedBox(height: 12),
+
+                // Current value chip
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: sim == null
+                      ? Text(
+                          'Not set — requests use real server time',
+                          style: TextStyle(fontSize: 13, color: subtitleColor),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _SimulatedDateBanner._label(sim),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Sent as: ${cfg.formatDate(sim)}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: subtitleColor,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  injectionLabel,
+                  style: TextStyle(fontSize: 11, color: subtitleColor),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Actions
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon:
+                            const Icon(Icons.calendar_today_outlined, size: 16),
+                        label: Text(sim == null ? 'Set date & time' : 'Change'),
+                        onPressed: _pickDate,
+                      ),
+                    ),
+                    if (sim != null) ...[
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: () =>
+                            TapakStore.instance.simulatedDate = null,
+                        child: const Text('Clear'),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

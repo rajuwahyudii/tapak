@@ -49,6 +49,19 @@ class TapakHttpClient extends BaseClient {
   Future<StreamedResponse> send(BaseRequest request) async {
     if (!enabled && !logToConsole) return _inner.send(request);
 
+    // QA: inject simulated date as a header if set.
+    // ponytail: query param injection skipped — http.BaseRequest.url is final;
+    // use TapakInterceptor (Dio) if query param injection is needed.
+    try {
+      final sim = _store.simulatedDate;
+      if (sim != null) {
+        final cfg = _store.simulatedDateConfig;
+        if (cfg.headerName != null) {
+          request.headers[cfg.headerName!] = cfg.formatDate(sim);
+        }
+      }
+    } catch (_) {}
+
     HttpTransaction? tx;
     try {
       tx = HttpTransaction(

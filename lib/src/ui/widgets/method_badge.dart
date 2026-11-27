@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_library_use
 import 'package:flutter/material.dart';
 
 /// Colored pill badge for an HTTP method.

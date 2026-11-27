@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_library_use
 import 'package:flutter/material.dart';
 
 import '../model/tapak_log_entry.dart';
