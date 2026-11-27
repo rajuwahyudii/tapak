@@ -65,6 +65,55 @@ Then tap any request → **⋮** menu → **Replay request** 🎉
 
 ---
 
+## 🕐 QA Tool: Date Simulation
+
+**Test date-sensitive backend logic** (expiry, scheduling, promotions) without changing your device clock.
+
+The device clock stays at real `DateTime.now()`. Only the outgoing HTTP requests receive the simulated date via header injection.
+
+### Quick Setup
+
+**Enable date simulation:**
+```dart
+// Set a simulated date
+TapakStore.instance.simulatedDate = DateTime(2026, 12, 25);
+
+// Clear simulation
+TapakStore.instance.simulatedDate = null;
+```
+
+**Customize injection (optional):**
+```dart
+// Use a different header name
+TapakStore.instance.simulatedDateConfig = const TapakSimulatedDateConfig(
+  headerName: 'X-Current-Date',
+);
+
+// Use query param instead (Dio only)
+TapakStore.instance.simulatedDateConfig = const TapakSimulatedDateConfig(
+  headerName: null,
+  queryParamName: 'currentDate',
+);
+
+// Both header and query param
+TapakStore.instance.simulatedDateConfig = const TapakSimulatedDateConfig(
+  headerName: 'X-Simulated-Date',
+  queryParamName: 'simulatedDate',
+);
+```
+
+**Using the UI:**
+1. Open the inspector → tap **⋮** menu → **QA Tools**
+2. Use the date/time picker to set or clear the simulated date
+3. An amber banner appears when simulation is active
+
+| Client | Header Injection | Query Param Injection |
+|--------|:----------------:|:---------------------:|
+| Dio | ✅ | ✅ |
+| http | ✅ | ❌ (url is immutable) |
+
+---
+
 ## ✨ Features
 
 | Feature | Dio | http | Description |
@@ -82,7 +131,10 @@ Then tap any request → **⋮** menu → **Replay request** 🎉
 | 🎨 **Custom Button Color** | ✅ | ✅ | Set any colour for the overlay button |
 | 📤 **HAR Export** | ✅ | ✅ | Export requests as HAR 1.2 |
 | 🔄 **Request Replay** | ✅ | ✅ | Re-run any request for QA testing |
+| 🕐 **Date Simulation** | ✅ | ✅* | Inject simulated date for QA testing |
 | 🔢 **Binary Decoding** | ✅ | ✅ | `List<int>` responses decoded to UTF-8 |
+
+> *http supports header injection only; query param injection requires Dio
 
 ---
 
@@ -398,12 +450,24 @@ List<HttpTransaction> transactions   // newest-first, read-only
 int maxTransactions                  // cap (default: 200)
 bool showButton                      // show/hide the overlay FAB
 Color? buttonColor                   // null = auto colour scheme
+DateTime? simulatedDate              // QA date simulation
+TapakSimulatedDateConfig simulatedDateConfig  // injection config
 
 // Methods
 void add(HttpTransaction tx)
 void update(HttpTransaction tx)
 void clear()
 HttpTransaction? findById(String id)
+```
+
+### TapakSimulatedDateConfig
+
+```dart
+TapakSimulatedDateConfig({
+  String? headerName = 'X-Simulated-Date',  // header to inject (null = disabled)
+  String? queryParamName,                    // query param to inject (Dio only)
+  String Function(DateTime)? format,         // custom date formatter
+})
 ```
 
 ### HarExporter
