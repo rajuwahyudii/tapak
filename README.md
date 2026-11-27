@@ -16,6 +16,21 @@ Inspired by [Alice](https://github.com/jhomlala/alice) and [Chucker](https://git
 
 ---
 
+## 🔄 NEW: QA Simulation (Request Replay)
+
+**Re-run any API request with one tap** — perfect for QA testing, debugging edge cases, and verifying fixes without navigating through your app.
+
+<p align="center">
+  <img src="assets/export and replay.png" width="280" alt="Replay feature">
+</p>
+
+- ✅ Works with both **Dio** and **http** requests
+- ✅ Preserves original method, URL, headers, and body
+- ✅ New response appears in the list with a **replay** badge
+- ✅ No extra setup required — just use Tapak as normal
+
+---
+
 ## ✨ Features
 
 | Feature | Description |
@@ -178,21 +193,66 @@ final map = HarExporter.toHarMap(TapakStore.instance.transactions);
 
 Re-run any recorded request with one tap — perfect for QA testing and debugging.
 
+**How to use:**
+
 1. Open any transaction detail screen
 2. Tap the **⋮** menu → **Replay request**
 3. The request is re-sent with the same method, URL, headers, and body
 4. A new transaction appears in the list marked with a 🔄 **replay** badge
 
-Replayed requests use the `http` package internally, so they work regardless of whether the original was made with Dio or http.
+**Setup for Dio:**
 
 ```dart
-// Programmatic replay
+import 'package:dio/dio.dart';
 import 'package:tapak/tapak.dart';
 
-final original = TapakStore.instance.transactions.first;
-final replayed = await TapakReplayer.replay(original);
-print('Replayed: ${replayed.statusCode}');
+final dio = Dio()
+  ..interceptors.add(TapakInterceptor(
+    enabled: true,
+    logToConsole: true,
+  ));
+
+// Make requests as normal — replay is available automatically
+await dio.get('https://api.example.com/users');
+await dio.post('https://api.example.com/users', data: {'name': 'John'});
 ```
+
+**Setup for http package:**
+
+```dart
+import 'package:http/http.dart' as http;
+import 'package:tapak/tapak.dart';
+
+final client = TapakHttpClient(
+  http.Client(),
+  enabled: true,
+  logToConsole: true,
+);
+
+// Make requests as normal — replay is available automatically
+await client.get(Uri.parse('https://api.example.com/users'));
+await client.post(
+  Uri.parse('https://api.example.com/users'),
+  body: jsonEncode({'name': 'John'}),
+  headers: {'Content-Type': 'application/json'},
+);
+```
+
+**Programmatic replay:**
+
+```dart
+import 'package:tapak/tapak.dart';
+
+// Get any recorded transaction
+final original = TapakStore.instance.transactions.first;
+
+// Replay it
+final replayed = await TapakReplayer.replay(original);
+print('Status: ${replayed.statusCode}');
+print('Duration: ${replayed.durationText}');
+```
+
+> **Note:** Replayed requests use the `http` package internally, so they work regardless of whether the original was made with Dio or http.
 
 ---
 
@@ -322,6 +382,18 @@ HarExporter.toHarMap(List<HttpTransaction> transactions)
 ```dart
 TapakPrinter.title = 'MyApp';      // custom title prefix (default: null)
 TapakPrinter.showHeaders = false;  // include headers in output (default: false)
+```
+
+### TapakReplayer
+
+```dart
+// Replay any recorded transaction
+Future<HttpTransaction> TapakReplayer.replay(HttpTransaction original)
+
+// The returned transaction has:
+// - isReplayed = true (shows replay badge in UI)
+// - Fresh requestTime and responseTime
+// - New response from the server
 ```
 
 ---
