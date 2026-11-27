@@ -16,6 +16,14 @@ Inspired by [Alice](https://github.com/jhomlala/alice) and [Chucker](https://git
 
 ---
 
+## 📦 Compatibility
+
+| Tapak Version | Flutter | Dart SDK | Dio | http |
+|---------------|---------|----------|-----|------|
+| 0.1.x | ≥3.0.0 | ≥3.0.0 | ^5.0.0 | ^1.0.0 |
+
+---
+
 ## 🔄 NEW: QA Simulation (Request Replay)
 
 **Re-run any API request with one tap** — perfect for QA testing, debugging edge cases, and verifying fixes without navigating through your app.
@@ -33,23 +41,22 @@ Inspired by [Alice](https://github.com/jhomlala/alice) and [Chucker](https://git
 
 ## ✨ Features
 
-| Feature | Description |
-|---------|-------------|
-| 📡 **HTTP Logging** | Automatically logs all Dio and `http` requests |
-| 🎨 **Beautiful UI** | Color-coded method badges and status indicators |
-| ⏱️ **Timing** | Request/response duration tracking |
-| 📋 **Full Inspection** | Headers, body, query params with copy-to-clipboard |
-| 🔍 **Search & Filter** | Filter by URL or method; search inside any body |
-| 🎯 **JSON Viewer** | Regex-based syntax-highlighted viewer — no lag on large responses |
-| 🔴 **Error Alerts** | Overlay button turns red on errors |
-| 🖥️ **Console Logging** | Optional formatted debug console output (capped at 100 lines) |
-| 🌙 **Dark Mode** | Full dark/light theme support |
-| 🪄 **iOS-style Overlay** | Draggable frosted-glass button with idle fade and press animation |
-| 🎨 **Custom Button Color** | Set any colour for the overlay button at runtime |
-| 👁️ **Toggle Button** | Show or hide the overlay button without restarting |
-| 📤 **HAR Export** | Export all recorded requests as HAR 1.2 (copied to clipboard) |
-| 🔄 **Request Replay** | Re-run any request with one tap for QA testing |
-| 🔢 **Binary Body Decoding** | `List<int>` byte-array responses decoded to UTF-8 automatically |
+| Feature | Dio | http | Description |
+|---------|:---:|:----:|-------------|
+| 📡 **HTTP Logging** | ✅ | ✅ | Automatically logs all requests |
+| 🎨 **Beautiful UI** | ✅ | ✅ | Color-coded method badges and status indicators |
+| ⏱️ **Timing** | ✅ | ✅ | Request/response duration tracking |
+| 📋 **Full Inspection** | ✅ | ✅ | Headers, body, query params with copy-to-clipboard |
+| 🔍 **Search & Filter** | ✅ | ✅ | Filter by URL or method; search inside any body |
+| 🎯 **JSON Viewer** | ✅ | ✅ | Syntax-highlighted viewer — no lag on large responses |
+| 🔴 **Error Alerts** | ✅ | ✅ | Overlay button turns red on errors |
+| 🖥️ **Console Logging** | ✅ | ✅ | Formatted debug console output with box borders |
+| 🌙 **Dark Mode** | ✅ | ✅ | Full dark/light theme support |
+| 🪄 **iOS-style Overlay** | ✅ | ✅ | Draggable frosted-glass button with animations |
+| 🎨 **Custom Button Color** | ✅ | ✅ | Set any colour for the overlay button |
+| 📤 **HAR Export** | ✅ | ✅ | Export requests as HAR 1.2 |
+| 🔄 **Request Replay** | ✅ | ✅ | Re-run any request for QA testing |
+| 🔢 **Binary Decoding** | ✅ | ✅ | `List<int>` responses decoded to UTF-8 |
 
 ---
 
